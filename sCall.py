@@ -6,7 +6,7 @@ LH = 424.0
 LT = 1503.0
 dx = 3.0
 omega = 3.6*2*np.pi
-nT = 32.0  # n Periods
+nT = 8.0  # n Periods
 dt = 0.001
 
 E = 3.86
