@@ -3,11 +3,19 @@ import matplotlib.pyplot as plt
 import numpy.linalg
 import matplotlib.animation as animation
 
-def genWaveform(t,omega):
+def genWaveform1(t,omega):
 
     m = np.sin(omega/2.0*t)
     m = (np.abs(m) - 0.3)/0.7
     m[np.where(m<0)[0]] = 0
+
+    return m
+
+def genWaveform2(t,omega):
+
+    m = np.sin(omega*t)
+    #m = (np.abs(m) - 0.3)/0.7
+    #m[np.where(m<0)[0]] = 0
 
     return m
 
@@ -30,6 +38,7 @@ class flagella(object):
         self.zetaNTail = params['zetaNTail']
         self.zetaTHead = params['zetaTHead']
         self.zetaTTail = params['zetaTTail']
+        self.drivingFunction = params['drivingFunction']
         self.moment = params['moment']
         self.mStart = params['mStart']
         self.mEnd = params['mEnd']
@@ -61,7 +70,12 @@ class flagella(object):
     ########
     def actuator(self):
         print('Calculating normal driving forces w(x,t)')
-        mFunc = genWaveform(self.t,self.omega)
+        if self.drivingFunction == 2:
+            mFunc = genWaveform2(self.t,self.omega)
+        else:
+            mFunc = genWaveform1(self.t,self.omega)
+
+        #mFunc = genWaveform1(self.t,self.omega)
         self.m = np.zeros(self.x.shape[0])
         mStartIndex = np.round(self.mStart/self.dx)
         mEndIndex = np.round(self.mEnd/self.dx)
