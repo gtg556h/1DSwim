@@ -9,6 +9,8 @@ omega = 3.6*2*np.pi
 nT = 8.0  # n Periods
 dt = 0.001
 
+drivingFunction = 3
+
 E = 3.86
 IH = 57.0**3*22.0/12.0
 IT = 7.9**3*22.0/12.0
@@ -31,7 +33,7 @@ shift = [0,0]
 shiftAmp = 1
 twistAmp = 1
 
-params = {'LT':LT, 'LH':LH, 'dx':dx, 'omega':omega, 'nT':nT, 'dt':dt, 'E':E, 'AH':AH, 'AT':AT, 'zetaNHead':zetaNHead, 'zetaNTail':zetaNTail, 'zetaTHead':zetaTHead, 'zetaTTail':zetaTTail, 'moment':moment, 'mStart':mStart, 'mEnd':mEnd, 'BC':BC, 'twist':twist, 'shift':shift, 'shiftAmp':shiftAmp, 'twistAmp':twistAmp}  
+params = {'LT':LT, 'LH':LH, 'dx':dx, 'omega':omega, 'nT':nT, 'dt':dt, 'E':E, 'AH':AH, 'AT':AT, 'zetaNHead':zetaNHead, 'zetaNTail':zetaNTail, 'zetaTHead':zetaTHead, 'zetaTTail':zetaTTail, 'moment':moment, 'mStart':mStart, 'mEnd':mEnd, 'BC':BC, 'twist':twist, 'shift':shift, 'shiftAmp':shiftAmp, 'twistAmp':twistAmp, 'drivingFunction':drivingFunction}  
 
 
 s1 = sl.flagella(params)
