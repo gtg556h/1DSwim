@@ -3,10 +3,13 @@ import matplotlib.pyplot as plt
 import swimLibV2 as sl
 
 LH = 424.0
-LT = 4503.0
+LH = 50
+LT = 1503.0
 dx = 3.0
-omega = 3.6*2*np.pi
-nT = 8.0  # n Periods
+
+#omega = 3.6*2*np.pi
+omega = 3.25*2*np.pi
+nT = 4.0  # n Periods
 dt = 0.001
 
 drivingFunction = 3
@@ -27,7 +30,7 @@ moment = 37.37
 mStart = LH + 45.0   # unit length, not grid number!
 mEnd = mStart + 60.0
 
-BC = [0,0]
+BC = [1,0]
 twist = [0,0]
 shift = [0,0]
 shiftAmp = 1

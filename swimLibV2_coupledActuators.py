@@ -1,35 +1,17 @@
+# Based on swimLibV2, snapshot on 20140611
+
 import numpy as np
 import matplotlib.pyplot as plt
 import numpy.linalg
 import matplotlib.animation as animation
+import random
+import pdb
 
-def genWaveform1(t,omega):
-    # Standard waveform used in NatureComm paper
-
-    m = np.sin(omega/2.0*t)
-    m = (np.abs(m) - 0.3)/0.7
-    m[np.where(m<0)[0]] = 0
-
+def genWaveform(moment,duration,dt):
+    tShort = np.arange(0,duration,dt)
+    m = moment * np.sin(tShort*np.pi/duration)
+    
     return m
-
-def genWaveform2(t,omega):
-    # Pefect sinusoidal, 2-sided driving function
-
-    m = np.sin(omega*t)
-    #m = (np.abs(m) - 0.3)/0.7
-    #m[np.where(m<0)[0]] = 0
-
-    return m
-
-def genWaveform3(t,omega):
-    # Nominally tweaked waveform form conference proceedings etc...
-
-    m = np.sin(omega/2.0*t)
-    m = (np.abs(m) - 0.25)/0.75
-    m[np.where(m<0)[0]] = 0
-
-    return m
-
 
 
 class flagella(object):
@@ -39,8 +21,8 @@ class flagella(object):
         self.LT = params['LT']
         self.LH = params['LH']
         self.dx = params['dx']
-        self.omega = params['omega']
-        self.nT = params['nT']
+        self.duration = params['duration']
+        self.tMax = params['tMax']
         self.dt = params['dt']
         self.E = params['E']
         self.AH = params['AH']
@@ -49,7 +31,6 @@ class flagella(object):
         self.zetaNTail = params['zetaNTail']
         self.zetaTHead = params['zetaTHead']
         self.zetaTTail = params['zetaTTail']
-        self.drivingFunction = params['drivingFunction']
         self.moment = params['moment']
         self.mStart = params['mStart']
         self.mEnd = params['mEnd']
@@ -58,12 +39,19 @@ class flagella(object):
         self.shift = params['shift']
         self.shiftAmp = params['shiftAmp']
         self.twistAmp = params['twistAmp']
-        self.drivingFunction = params['drivingFunction']
+        self.nActuators = params['nActuators']
+        self.coupling = params['coupling']
+        self.randAbs = params['randAbs']
+        self.constAbs = params['constAbs']
+        self.leak = params['leak']
+        self.c0 = params['c0']
+        self.actuatorInd = params['actuatorInd']
+        self.actuatorCenter = params['actuatorCenter']
+        self.surface = params['surface']
         
         self.L = self.LH+self.LT
         self.x = np.arange(0,self.L+self.dx,self.dx)
-        self.T = 2*np.pi/self.omega 
-        self.t = np.arange(0,self.nT*self.T+self.dt,self.dt)
+        self.t = np.arange(0,self.tMax,self.dt)
 
         self.zetaN = np.zeros(self.x.shape[0])
         self.zetaN[0:np.round(self.LH/self.dx)] = self.zetaNHead
@@ -78,49 +66,104 @@ class flagella(object):
         self.A[np.round(self.LH/self.dx):self.x.shape[0]] = self.AT
 
         self.y0 = np.zeros(self.x.shape[0])
+        
+        self.c = np.zeros([self.t.shape[0],self.nActuators])
+        self.c[0,:] = self.c0
+        self.cRandom = np.zeros([self.t.shape[0],self.nActuators])
+        self.cConstant = np.zeros([self.t.shape[0],self.nActuators])
+        self.cCoupled = np.zeros([self.t.shape[0],self.nActuators])
+        self.cLeak = np.zeros([self.t.shape[0],self.nActuators])
+        self.state = np.zeros([self.t.shape[0],self.nActuators])
+        self.zero = np.zeros([self.t.shape[0], self.nActuators])
+        self.phase = np.zeros([self.t.shape[0], self.nActuators])
 
     ########
     def actuator(self):
         print('Calculating normal driving forces w(x,t)')
-        if self.drivingFunction == 2:
-            mFunc = genWaveform2(self.t,self.omega)
-        elif self.drivingFunction == 3:
-            mFunc = genWaveform3(self.t,self.omega)
-        else:
-            mFunc = genWaveform1(self.t,self.omega)
 
-        #mFunc = genWaveform1(self.t,self.omega)
-        self.m = np.zeros(self.x.shape[0])
-        mStartIndex = np.round(self.mStart/self.dx)
-        mEndIndex = np.round(self.mEnd/self.dx)
-        self.m[mStartIndex:mEndIndex+1] = self.moment
+        mFunc = genWaveform(self.moment, self.duration, self.dt)
+
+        self.m = np.zeros([self.x.shape[0],self.t.shape[0]])
+        self.w = np.zeros([self.x.shape[0],self.t.shape[0]])
 
         self.mFunc = mFunc
 
-        self.momentCalc(mFunc)
+        #self.momentCalc(mFunc)
 
 
     #######
 
-    def momentCalc(self,mFunc):
-        self.m[0:2] = np.zeros([2])
-        self.m[self.m.shape[0]-2:self.m.shape[0]] = np.zeros([2])
+    def momentCalc(self,m):
+        m[0:2] = np.zeros([2])
+        m[m.shape[0]-2:m.shape[0]] = np.zeros([2])
 
-        a = np.zeros([self.m.shape[0],self.m.shape[0]])
-        self.w = np.zeros([self.x.shape[0],self.t.shape[0]])
+        a = np.zeros([m.shape[0],m.shape[0]])
+        #w = np.zeros(self.x.shape[0])
 
         for i in range(0, self.x.shape[0]-1):
-            a[i,i+1:self.m.shape[0]] = self.dx*np.arange(1,self.m.shape[0]-i,1)
+            a[i,i+1:m.shape[0]] = self.dx*np.arange(1,m.shape[0]-i,1)
 
-        a[self.m.shape[0]-1,:] = np.ones([1,self.m.shape[0]])
+        a[m.shape[0]-1,:] = np.ones([1,m.shape[0]])
 
-        wBase = np.linalg.solve(a,self.m)
+        w = np.linalg.solve(a,m)
 
-        for i in range(0,self.t.shape[0]):
-            self.w[:,i] = np.multiply(wBase,mFunc[i])
+        return w
 
         #return self.w
 
+    ###########################
+    # Function to step actuator state:
+
+    def stepActuator(self,i):
+        # utilize self.c and self.state
+        # upper bound on state: length of mFunc:
+        thresh = self.mFunc.shape[0]-1
+
+        bendingVec = self.calcBending(self.y[:,i-1],self.dx)
+        
+        for jj in range(0,self.nActuators):
+            if self.state[i-1,jj]>0:
+                #print('jj',jj)
+                #print('i',i)
+                #pdb.set_trace()
+                self.state[i,jj] = self.state[i-1,jj]+1
+                self.m[self.actuatorInd[0,jj]:self.actuatorInd[1,jj],i] = self.mFunc[self.state[i-1,jj]] * self.surface[jj]
+                #self.state[i,jj] = self.state[i-1,jj]+1
+                if self.state[i,jj] > thresh:
+                    self.state[i,jj] = 0
+            else:
+                self.cCoupled[i,jj] = self.dt*np.max([-self.coupling[jj]*bendingVec[self.actuatorCenter[jj]]*self.surface[jj],0])
+                #pdb.set_trace()
+               
+                self.cConstant[i,jj] = self.dt*self.constAbs[jj]
+                self.cRandom[i,jj] = self.dt*self.randAbs[jj]*random.random()
+                self.cLeak[i,jj] = self.dt*self.leak[jj]*self.c[i-1,jj]
+
+                #self.c[i,jj] = self.c[i-1,jj] + self.constAbs[jj] + self.coupling[jj]*bendingVec[self.actuatorCenter[jj]]
+                self.c[i,jj] = self.c[i-1,jj] + self.cCoupled[i,jj] + self.cConstant[i,jj] + self.cRandom[i,jj] - self.cLeak[i,jj]
+                if self.c[i,jj] > 1:
+                    self.state[i,jj]=1
+                    self.c[i,jj] = 0
+
+        self.w[:,i] = self.momentCalc(self.m[:,i])
+        #if (self.state[i,:] != np.array([0,0])).any():
+            #pdb.set_trace()
+
+
+
+    #######
+
+    def calcBending(self,y,dx):
+        A = np.zeros([y.shape[0],y.shape[0]])
+        for ii in range(1,y.shape[0]-1):
+            A[ii,ii-1:ii+2] = [1,-2,1]
+        A[0,0:4] = [2,-5,4,-1]
+        A[y.shape[0]-1,y.shape[0]-4:y.shape[0]] = [-1,4,-5,2]
+
+        A = A/dx**2
+
+        return np.dot(A,y)
+        
 
     #######
     def numSolve(self):
@@ -181,20 +224,61 @@ class flagella(object):
             a[nx-1,nx-4:nx] = np.array([-1,4,-5,2])/self.dx**2 
             c[nx-2:nx,:] = np.zeros([2,nt])
 
-        c[2:nx-2,:] = c[2:nx-2,:] + self.w[2:nx-2,:]
+        # Old generation of c, not useful now...
+        #c[2:nx-2,:] = c[2:nx-2,:] + self.w[2:nx-2,:]
         
         # Build differential operator
         a = a + D4 + Dt
         
         # Solution step
         for i in range(1,nt):
+            #print(i,'/',nt)
             if np.mod(i,50)==0:
                 print(i/np.float(self.t.shape[0]))
+
+
+            # Update actuator, calculate contractile force:
+            self.stepActuator(i)
+
+            # Add current moment from cell contraction:
+            c[2:nx-2,i] = c[2:nx-2,i] + self.w[2:nx-2,i]
                 
+            # Add other stuff from previous step, etc...
             c[2:nx-2,i] = c[2:nx-2,i] + np.multiply(self.zetaN[2:nx-2],self.y[2:nx-2,i-1])*self.dx/self.dt
 
             self.y[:,i] = np.linalg.solve(a,c[:,i])
 
+
+    #######
+    def genPhase(self):
+        self.zero[np.where(self.state == np.max(self.state))] = 1
+
+        for i in range(0, self.nActuators):
+            zeroIndex = np.where(self.state[:,i] == np.max(self.state))[0]
+
+            meanPeriod = np.mean(np.diff(zeroIndex)[1:zeroIndex.shape[0]-1])
+            print(meanPeriod)
+
+            for k in range(0, zeroIndex[0]+1):
+                self.phase[k,i] = ((meanPeriod - zeroIndex[0]) + k)/(meanPeriod-1)
+
+            for j in range(0, zeroIndex.shape[0]-1):
+                for k in range(zeroIndex[j], zeroIndex[j+1]):
+                    self.phase[k,i] = (k-zeroIndex[j])/(zeroIndex[j+1] - zeroIndex[j] - 1)
+                    #pdb.set_trace()
+                    #print(i,j,k)
+
+            for k in range(zeroIndex[-1], self.phase.shape[0]):
+                self.phase[k,i] = (k - zeroIndex[-1])/meanPeriod
+
+
+
+    #######
+    def genPhaseDiff(self,ref):
+        self.phaseDiff = np.zeros(self.phase.shape)
+        
+        for i in range(0,self.nActuators):
+            self.phaseDiff[:,i] = np.mod((self.phase[:,i] - self.phase[:,ref]),1)
 
     #######
     def propulsionCalc(self):
@@ -259,7 +343,7 @@ class flagella(object):
             return line,
 
         # Call the animator:
-        anim = animation.FuncAnimation(fig, animate, init_func=init, frames=nFrames, interval=50, blit=True, repeat=True)
+        anim = animation.FuncAnimation(fig, animate, init_func=init, frames=nFrames, interval=50, blit=True, repeat=False)
 
         plt.show()
 
