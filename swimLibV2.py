@@ -226,6 +226,13 @@ class flagella(object):
     #######
 
     def plotDisp(self,DF=1,plotFrac=1):
+		# mac issues: 
+		# Error: 'FigureCanvasMac' object has no attribute 'restore_region'
+		# Solution:
+		# 1. blit=False
+		#    ani = animation.FuncAnimation(fig, ...., blit=False)
+		# 2. import matplotlib
+	    #    matplotlib.use('TkAgg')
         print('Displaying solution shapes')
         nx = self.x.shape[0]
         nt = self.t.shape[0]
@@ -259,7 +266,7 @@ class flagella(object):
             return line,
 
         # Call the animator:
-        anim = animation.FuncAnimation(fig, animate, init_func=init, frames=nFrames, interval=50, blit=True, repeat=True)
+        anim = animation.FuncAnimation(fig, animate, init_func=init, frames=nFrames, interval=50, blit=False, repeat=True)
 
         plt.show()
 
